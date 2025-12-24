@@ -1,0 +1,47 @@
+spring:
+  profiles:
+    active: production
+  
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI}
+
+app:
+  security:
+    cors:
+      enabled: ${CORS_ENABLED:false}
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+  opa:
+    url: ${OPA_URL}
+    policy-path: ${OPA_POLICY_PATH:/v1/data/authz/allow}
+    timeout-ms: ${OPA_TIMEOUT_MS:3000}
+    max-retries: ${OPA_MAX_RETRIES:2}
+    retry-delay-ms: ${OPA_RETRY_DELAY_MS:200}
+    circuit-breaker:
+      failure-threshold: ${OPA_CB_FAILURE_THRESHOLD:3}
+      timeout-duration: ${OPA_CB_TIMEOUT_DURATION:5000}
+      wait-duration-in-open-state: ${OPA_CB_WAIT_DURATION:20000}
+
+logging:
+  level:
+    com.opa.demo: ${LOG_LEVEL:INFO}
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{requestId}] %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: never
+  metrics:
+    export:
+      prometheus:
+        enabled: true
