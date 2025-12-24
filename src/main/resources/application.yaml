@@ -1,6 +1,70 @@
 server:
   port: 8081
+  error:
+    include-message: always
+    include-binding-errors: always
+  shutdown: graceful
 
 spring:
   application:
     name: OPA Spring Boot Demo
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/demo}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8080/realms/demo/protocol/openid-connect/certs}
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+app:
+  opa:
+    url: ${OPA_URL:http://localhost:8181}
+    policy-path: ${OPA_POLICY_PATH:/v1/data/authz/allow}
+    timeout-ms: ${OPA_TIMEOUT_MS:5000}
+    max-retries: ${OPA_MAX_RETRIES:3}
+    retry-delay-ms: ${OPA_RETRY_DELAY_MS:100}
+    circuit-breaker:
+      failure-threshold: ${OPA_CB_FAILURE_THRESHOLD:5}
+      timeout-duration: ${OPA_CB_TIMEOUT_DURATION:10000}
+      wait-duration-in-open-state: ${OPA_CB_WAIT_DURATION:30000}
+
+logging:
+  level:
+    com.opa.demo: ${LOG_LEVEL:INFO}
+    org.springframework.security: ${SECURITY_LOG_LEVEL:WARN}
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{requestId}] %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      opaService:
+        failure-rate-threshold: ${app.opa.circuit-breaker.failure-threshold:5}
+        wait-duration-in-open-state: ${app.opa.circuit-breaker.wait-duration-in-open-state:30s}
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+  retry:
+    instances:
+      opaService:
+        max-attempts: ${app.opa.max-retries:3}
+        wait-duration: ${app.opa.retry-delay-ms:100ms}
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - org.springframework.web.reactive.function.client.WebClientException
+          - java.util.concurrent.TimeoutException
